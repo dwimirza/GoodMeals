@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'recipe_detail_screen.dart';
+import 'services/recipe_api.dart'; // contains RecipeApiNinjas
+import 'models/recipe.dart';
 
 void main() {
   runApp(const GoodMealsApp());
@@ -14,30 +16,64 @@ class GoodMealsApp extends StatelessWidget {
       title: 'GoodMeals',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        scaffoldBackgroundColor: const Color(0xFFEBFFE6), // Light green background
-        fontFamily: 'Inter', // Pastikan Anda menambahkan font di pubspec.yaml jika ingin sama persis
+        scaffoldBackgroundColor: const Color(0xFFEBFFE6),
+        fontFamily: 'Inter',
       ),
       home: const GoodMealsHome(),
     );
   }
 }
 
-class GoodMealsHome extends StatelessWidget {
+class GoodMealsHome extends StatefulWidget {
   const GoodMealsHome({super.key});
 
-  // Warna-warna utama dari desain
+  @override
+  State<GoodMealsHome> createState() => _GoodMealsHomeState();
+}
+
+class _GoodMealsHomeState extends State<GoodMealsHome> {
   final Color primaryGreen = const Color(0xFF246E00);
   final Color textDark = const Color(0xFF163A1B);
+
+  final RecipeApiNinjas _api = RecipeApiNinjas();
+  late Future<List<Recipe>> _futureRecipes;
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // default query to show something on first load
+    _futureRecipes = _api.searchRecipes('soup');
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _search() {
+    final query = _searchController.text.trim();
+    if (query.isEmpty) return;
+
+    setState(() {
+      _futureRecipes = _api.searchRecipes(query);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
-          // Konten Utama yang bisa di-scroll
           SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.only(left: 24, right: 24, top: 20, bottom: 100),
+              padding: const EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 20,
+                bottom: 100,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -51,13 +87,11 @@ class GoodMealsHome extends StatelessWidget {
                   const SizedBox(height: 36),
                   _buildPopularRecipeHeader(),
                   const SizedBox(height: 24),
-                  _buildRecipeCards(context),
+                  _buildRecipeCardsFromApi(context),
                 ],
               ),
             ),
           ),
-
-          // Floating Bottom Navigation
           Positioned(
             bottom: 24,
             left: 24,
@@ -69,6 +103,8 @@ class GoodMealsHome extends StatelessWidget {
     );
   }
 
+  // ---------- UI helpers ----------
+
   Widget _buildTopAppBar() {
     return Row(
       children: [
@@ -79,7 +115,7 @@ class GoodMealsHome extends StatelessWidget {
             shape: BoxShape.circle,
             border: Border.all(color: primaryGreen.withOpacity(0.2), width: 2),
             image: const DecorationImage(
-              image: NetworkImage('https://i.pravatar.cc/150?img=5'), // Placeholder foto profil
+              image: NetworkImage('https://i.pravatar.cc/150?img=5'),
               fit: BoxFit.cover,
             ),
           ),
@@ -129,6 +165,8 @@ class GoodMealsHome extends StatelessWidget {
         ],
       ),
       child: TextField(
+        controller: _searchController,
+        onSubmitted: (_) => _search(),
         decoration: InputDecoration(
           hintText: 'Search recipe...',
           hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 16),
@@ -138,9 +176,12 @@ class GoodMealsHome extends StatelessWidget {
           ),
           suffixIcon: Padding(
             padding: const EdgeInsets.only(right: 8),
-            child: CircleAvatar(
-              backgroundColor: primaryGreen.withOpacity(0.1),
-              child: Icon(Icons.mic, color: primaryGreen, size: 20),
+            child: GestureDetector(
+              onTap: _search,
+              child: CircleAvatar(
+                backgroundColor: primaryGreen.withOpacity(0.1),
+                child: Icon(Icons.mic, color: primaryGreen, size: 20),
+              ),
             ),
           ),
           border: InputBorder.none,
@@ -173,7 +214,13 @@ class GoodMealsHome extends StatelessWidget {
         color: isSelected ? primaryGreen : Colors.white,
         borderRadius: BorderRadius.circular(30),
         boxShadow: isSelected
-            ? [BoxShadow(color: primaryGreen.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))]
+            ? [
+                BoxShadow(
+                  color: primaryGreen.withOpacity(0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                )
+              ]
             : [],
       ),
       child: Text(
@@ -210,57 +257,12 @@ class GoodMealsHome extends StatelessWidget {
     );
   }
 
-  // 1. Update this method to accept BuildContext for navigation
-  Widget _buildRecipeCards(BuildContext context) {
-    return Column(
-      children: [
-        _buildCustomCard(
-          bgColor: const Color(0xFFFDF7CC),
-          textColor: const Color(0xFF4E3D00),
-          time: '45 MIN',
-          title: 'Chicken Steak\nwith Lemon',
-          imageUrl: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&q=80&w=300',
-          // Add the navigation logic here
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const RecipeDetailScreen(),
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 40),
-        _buildCustomCard(
-          bgColor: const Color(0xFFD1FAE5),
-          textColor: const Color(0xFF00443D),
-          time: '35 MIN',
-          title: 'Spaghetti Original\nSeafood',
-          imageUrl: 'https://images.unsplash.com/photo-1563379926898-05f4575a45d8?auto=format&fit=crop&q=80&w=300',
-          // Add the navigation logic here as well
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const RecipeDetailScreen(),
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  // 2. Update the card builder to accept an onTap callback
   Widget _buildCustomCard({
     required Color bgColor,
     required Color textColor,
-    required String time,
     required String title,
-    required String imageUrl,
-    required VoidCallback onTap, // <--- New parameter
+    required VoidCallback onTap,
   }) {
-    // Wrap the entire Stack in a GestureDetector
     return GestureDetector(
       onTap: onTap,
       child: Stack(
@@ -279,16 +281,17 @@ class GoodMealsHome extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.schedule, size: 16, color: textColor.withOpacity(0.7)),
+                    Icon(Icons.schedule,
+                        size: 16, color: textColor.withOpacity(0.7)),
                     const SizedBox(width: 6),
-                    Text(
-                      time,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: textColor.withOpacity(0.7),
-                      ),
-                    ),
+                    // Text(
+                    //    time,
+                    //   style: TextStyle(
+                    //     fontSize: 12,
+                    //     fontWeight: FontWeight.bold,
+                    //     color: textColor.withOpacity(0.7),
+                    //   ),
+                    // ),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -308,16 +311,25 @@ class GoodMealsHome extends StatelessWidget {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
                       decoration: BoxDecoration(
                         color: textColor,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
                         children: const [
-                          Text('Recipe', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                          Text(
+                            'Recipe',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
                           SizedBox(width: 8),
-                          Icon(Icons.arrow_forward, color: Colors.white, size: 14),
+                          Icon(Icons.arrow_forward,
+                              color: Colors.white, size: 14),
                         ],
                       ),
                     ),
@@ -345,10 +357,10 @@ class GoodMealsHome extends StatelessWidget {
                     offset: const Offset(0, 10),
                   ),
                 ],
-                image: DecorationImage(
-                  image: NetworkImage(imageUrl),
-                  fit: BoxFit.cover,
-                ),
+                // image: DecorationImage(
+                //   image: NetworkImage(imageUrl),
+                //   fit: BoxFit.cover,
+                // ),
               ),
             ),
           ),
@@ -395,6 +407,63 @@ class GoodMealsHome extends StatelessWidget {
         color: isActive ? Colors.white : Colors.grey.shade400,
         size: 26,
       ),
+    );
+  }
+
+  // ---------- API cards ----------
+
+  Widget _buildRecipeCardsFromApi(BuildContext context) {
+    return FutureBuilder<List<Recipe>>(
+      future: _futureRecipes,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Text(
+              'Failed to load recipes: ${snapshot.error}',
+              style: TextStyle(color: Colors.red.shade700),
+            ),
+          );
+        }
+
+        final recipes = snapshot.data ?? [];
+
+        if (recipes.isEmpty) {
+          return const Text('No recipes found');
+        }
+
+        return Column(
+          children: [
+            for (int i = 0; i < recipes.length; i++)
+              Padding(
+                padding: EdgeInsets.only(
+                  bottom: i == recipes.length - 1 ? 0 : 40.0,
+                ),
+                child: _buildCustomCard(
+                  bgColor: i.isEven
+                      ? const Color(0xFFFDF7CC)
+                      : const Color(0xFFD1FAE5),
+                  textColor: i.isEven
+                      ? const Color(0xFF4E3D00)
+                      : const Color(0xFF00443D),
+                  title: recipes[i].title,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const RecipeDetailScreen(),
+                        // later: pass recipe
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
