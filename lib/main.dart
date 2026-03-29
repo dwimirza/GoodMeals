@@ -35,7 +35,7 @@ class _GoodMealsHomeState extends State<GoodMealsHome> {
   final Color primaryGreen = const Color(0xFF246E00);
   final Color textDark = const Color(0xFF163A1B);
 
-  final RecipeApiNinjas _api = RecipeApiNinjas();
+  final RecipeMealDb _api = RecipeMealDb();
   late Future<List<Recipe>> _futureRecipes;
   final TextEditingController _searchController = TextEditingController();
 
@@ -43,7 +43,7 @@ class _GoodMealsHomeState extends State<GoodMealsHome> {
   void initState() {
     super.initState();
     // default query to show something on first load
-    _futureRecipes = _api.searchRecipes('soup');
+    _futureRecipes = _api.searchRecipes('chicken');
   }
 
   @override
@@ -260,6 +260,7 @@ class _GoodMealsHomeState extends State<GoodMealsHome> {
   Widget _buildCustomCard({
     required Color bgColor,
     required Color textColor,
+    required String imageUrl,
     required String title,
     required VoidCallback onTap,
   }) {
@@ -357,10 +358,10 @@ class _GoodMealsHomeState extends State<GoodMealsHome> {
                     offset: const Offset(0, 10),
                   ),
                 ],
-                // image: DecorationImage(
-                //   image: NetworkImage(imageUrl),
-                //   fit: BoxFit.cover,
-                // ),
+                image: DecorationImage(
+                  image: NetworkImage(imageUrl),
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
           ),
@@ -450,6 +451,7 @@ class _GoodMealsHomeState extends State<GoodMealsHome> {
                       ? const Color(0xFF4E3D00)
                       : const Color(0xFF00443D),
                   title: recipes[i].title,
+                  imageUrl: recipes[i].imageUrl,
                   onTap: () {
                     Navigator.push(
                       context,
