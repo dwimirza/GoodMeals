@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'recipe_detail_screen.dart';
-import 'services/recipe_api.dart'; // contains RecipeApiNinjas
 import 'models/recipe.dart';
+import 'recipe_detail_screen.dart';
+import 'services/recipe_api.dart';
 
 void main() {
   runApp(const GoodMealsApp());
@@ -39,10 +39,11 @@ class _GoodMealsHomeState extends State<GoodMealsHome> {
   late Future<List<Recipe>> _futureRecipes;
   final TextEditingController _searchController = TextEditingController();
 
+  String _selectedCategory = 'main course';
+
   @override
   void initState() {
     super.initState();
-    // default query to show something on first load
     _futureRecipes = _api.searchRecipes('chicken');
   }
 
@@ -61,49 +62,59 @@ class _GoodMealsHomeState extends State<GoodMealsHome> {
     });
   }
 
+  void _filterCategory(String category) {
+    setState(() {
+      _selectedCategory = category;
+      _futureRecipes = _api.filterByCategory(category);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.only(
-                left: 24,
-                right: 24,
-                top: 20,
-                bottom: 100,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildTopAppBar(),
-                  const SizedBox(height: 32),
-                  _buildHeroText(),
-                  const SizedBox(height: 24),
-                  _buildSearchBar(),
-                  const SizedBox(height: 24),
-                  _buildCategories(),
-                  const SizedBox(height: 36),
-                  _buildPopularRecipeHeader(),
-                  const SizedBox(height: 24),
-                  _buildRecipeCardsFromApi(context),
-                ],
+          Positioned.fill(
+            child: SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(
+                  left: 24,
+                  right: 24,
+                  top: 20,
+                  bottom: 120,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildTopAppBar(),
+                    const SizedBox(height: 32),
+                    _buildHeroText(),
+                    const SizedBox(height: 24),
+                    _buildSearchBar(),
+                    const SizedBox(height: 24),
+                    _buildCategories(),
+                    const SizedBox(height: 36),
+                    _buildPopularRecipeHeader(),
+                    const SizedBox(height: 24),
+                    _buildRecipeCardsFromApi(context),
+                  ],
+                ),
               ),
             ),
           ),
           Positioned(
-            bottom: 24,
             left: 24,
             right: 24,
-            child: _buildBottomNav(),
+            bottom: 24,
+            child: SafeArea(
+              top: false,
+              child: _buildBottomNav(),
+            ),
           ),
         ],
       ),
     );
   }
-
-  // ---------- UI helpers ----------
 
   Widget _buildTopAppBar() {
     return Row(
@@ -114,11 +125,8 @@ class _GoodMealsHomeState extends State<GoodMealsHome> {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(color: primaryGreen.withOpacity(0.2), width: 2),
-            image: const DecorationImage(
-              image: NetworkImage('https://i.pravatar.cc/150?img=5'),
-              fit: BoxFit.cover,
-            ),
           ),
+          child: Icon(Icons.person, color: primaryGreen),
         ),
         const SizedBox(width: 16),
         Text(
@@ -180,7 +188,7 @@ class _GoodMealsHomeState extends State<GoodMealsHome> {
               onTap: _search,
               child: CircleAvatar(
                 backgroundColor: primaryGreen.withOpacity(0.1),
-                child: Icon(Icons.mic, color: primaryGreen, size: 20),
+                child: Icon(Icons.search, color: primaryGreen, size: 20),
               ),
             ),
           ),
@@ -192,16 +200,26 @@ class _GoodMealsHomeState extends State<GoodMealsHome> {
   }
 
   Widget _buildCategories() {
+    final categories = [
+      'main course',
+      'side dish',
+      'dessert',
+      'appetizer',
+    ];
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       clipBehavior: Clip.none,
       child: Row(
-        children: [
-          _buildCategoryChip('All', isSelected: true),
-          _buildCategoryChip('Meat', isSelected: false),
-          _buildCategoryChip('Noodles', isSelected: false),
-          _buildCategoryChip('Vegetable', isSelected: false),
-        ],
+        children: categories.map((category) {
+          return GestureDetector(
+            onTap: () => _filterCategory(category),
+            child: _buildCategoryChip(
+              category,
+              isSelected: _selectedCategory == category,
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -215,12 +233,12 @@ class _GoodMealsHomeState extends State<GoodMealsHome> {
         borderRadius: BorderRadius.circular(30),
         boxShadow: isSelected
             ? [
-                BoxShadow(
-                  color: primaryGreen.withOpacity(0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                )
-              ]
+          BoxShadow(
+            color: primaryGreen.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ]
             : [],
       ),
       child: Text(
@@ -264,12 +282,15 @@ class _GoodMealsHomeState extends State<GoodMealsHome> {
     required String title,
     required VoidCallback onTap,
   }) {
+    final safeImageUrl = imageUrl.isNotEmpty
+        ? imageUrl
+        : 'https://via.placeholder.com/300x300.png?text=No+Image';
+
     return GestureDetector(
       onTap: onTap,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // Background Card
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(24),
@@ -280,20 +301,10 @@ class _GoodMealsHomeState extends State<GoodMealsHome> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Icon(Icons.schedule,
-                        size: 16, color: textColor.withOpacity(0.7)),
-                    const SizedBox(width: 6),
-                    // Text(
-                    //    time,
-                    //   style: TextStyle(
-                    //     fontSize: 12,
-                    //     fontWeight: FontWeight.bold,
-                    //     color: textColor.withOpacity(0.7),
-                    //   ),
-                    // ),
-                  ],
+                Icon(
+                  Icons.restaurant_menu,
+                  size: 16,
+                  color: textColor.withOpacity(0.7),
                 ),
                 const SizedBox(height: 12),
                 SizedBox(
@@ -313,7 +324,9 @@ class _GoodMealsHomeState extends State<GoodMealsHome> {
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 10),
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: textColor,
                         borderRadius: BorderRadius.circular(20),
@@ -329,19 +342,21 @@ class _GoodMealsHomeState extends State<GoodMealsHome> {
                             ),
                           ),
                           SizedBox(width: 8),
-                          Icon(Icons.arrow_forward,
-                              color: Colors.white, size: 14),
+                          Icon(
+                            Icons.arrow_forward,
+                            color: Colors.white,
+                            size: 14,
+                          ),
                         ],
                       ),
                     ),
                     const SizedBox(width: 16),
-                    Icon(Icons.bookmark, color: textColor.withOpacity(0.5)),
+                    Icon(Icons.bookmark, color: textColor),
                   ],
                 )
               ],
             ),
           ),
-          // Food Image
           Positioned(
             right: -10,
             top: -20,
@@ -351,16 +366,22 @@ class _GoodMealsHomeState extends State<GoodMealsHome> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 4),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    blurRadius: 15,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-                image: DecorationImage(
-                  image: NetworkImage(imageUrl),
+                color: Colors.white,
+              ),
+              child: ClipOval(
+                child: Image.network(
+                  safeImageUrl,
                   fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.grey.shade200,
+                      child: const Icon(
+                        Icons.image_not_supported,
+                        color: Colors.grey,
+                        size: 32,
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
@@ -411,8 +432,6 @@ class _GoodMealsHomeState extends State<GoodMealsHome> {
     );
   }
 
-  // ---------- API cards ----------
-
   Widget _buildRecipeCardsFromApi(BuildContext context) {
     return FutureBuilder<List<Recipe>>(
       future: _futureRecipes,
@@ -456,8 +475,9 @@ class _GoodMealsHomeState extends State<GoodMealsHome> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const RecipeDetailScreen(),
-                        // later: pass recipe
+                        builder: (context) => RecipeDetailScreen(
+                          recipeId: recipes[i].id,
+                        ),
                       ),
                     );
                   },

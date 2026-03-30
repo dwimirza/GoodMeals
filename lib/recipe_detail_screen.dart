@@ -1,321 +1,418 @@
 import 'package:flutter/material.dart';
+import 'models/recipe.dart';
+import 'services/recipe_api.dart';
 
 class RecipeDetailScreen extends StatelessWidget {
-  const RecipeDetailScreen({super.key});
+  final String recipeId;
 
-  final Color primaryGreen = const Color(0xFF7ED957);
-  final Color textDark = const Color(0xFF163A1B);
-  final Color textGrey = const Color(0xFFA0A0A0);
+  const RecipeDetailScreen({
+    super.key,
+    required this.recipeId,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
+    final api = RecipeMealDb();
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Stack(
-        children: [
-          // 1. Background Hero Image
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: size.height * 0.45,
-            child: Image.network(
-              'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&q=80&w=800',
-              fit: BoxFit.cover,
-            ),
-          ),
+      backgroundColor: const Color(0xFFF7F7F7),
+      body: FutureBuilder<Recipe?>(
+        future: api.getById(recipeId),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-          // 2. Top Navigation Buttons
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 16,
-            left: 24,
-            child: _buildNavButton(
-              icon: Icons.arrow_back_ios_new,
-              onTap: () => Navigator.pop(context),
-            ),
-          ),
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 16,
-            right: 24,
-            child: _buildNavButton(
-              icon: Icons.more_horiz,
-              onTap: () {},
-            ),
-          ),
-
-          // 3. Bottom Sheet Content
-          Positioned(
-            top: size.height * 0.35,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  'Failed to load recipe: ${snapshot.error}',
+                  style: const TextStyle(color: Colors.red),
+                  textAlign: TextAlign.center,
+                ),
               ),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(
-                    left: 24, right: 24, top: 16, bottom: 100),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Drag Handle
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
+            );
+          }
 
-                    // Title and Time Badge
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Chicken Steak With\nLemon',
-                            style: TextStyle(
-                              fontSize: 26,
-                              fontWeight: FontWeight.w800,
-                              color: textDark,
-                              height: 1.2,
-                            ),
-                          ),
-                        ),
+          final recipe = snapshot.data;
+          if (recipe == null) {
+            return const Center(child: Text('Recipe not found'));
+          }
+
+          return _RecipeDetailContent(recipe: recipe);
+        },
+      ),
+    );
+  }
+}
+
+class _RecipeDetailContent extends StatelessWidget {
+  final Recipe recipe;
+
+  const _RecipeDetailContent({required this.recipe});
+
+  @override
+  Widget build(BuildContext context) {
+    const Color primaryGreen = Color(0xFF7ED957);
+    const Color textDark = Color(0xFF163A1B);
+    const Color textGrey = Color(0xFFA0A0A0);
+
+    final imageUrl = recipe.imageUrl.isNotEmpty
+        ? recipe.imageUrl
+        : 'https://via.placeholder.com/800x600.png?text=No+Image';
+
+    return Stack(
+      children: [
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 330,
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                color: Colors.grey.shade200,
+                child: const Center(
+                  child: Icon(
+                    Icons.image_not_supported,
+                    color: Colors.grey,
+                    size: 40,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        Positioned(
+          top: MediaQuery.of(context).padding.top + 16,
+          left: 24,
+          child: _buildTopButton(
+            icon: Icons.arrow_back_ios_new,
+            onTap: () => Navigator.pop(context),
+          ),
+        ),
+        Positioned(
+          top: MediaQuery.of(context).padding.top + 16,
+          right: 24,
+          child: _buildTopButton(
+            icon: Icons.more_horiz,
+            onTap: () {},
+          ),
+        ),
+        Positioned.fill(
+          top: 280,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(40),
+              ),
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 110),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    recipe.title,
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      color: textDark,
+                      height: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      if (recipe.category.isNotEmpty)
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
                             color: primaryGreen,
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: const Text(
-                            '45 MIN',
-                            style: TextStyle(
+                          child: Text(
+                            recipe.category,
+                            style: const TextStyle(
                               color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 32),
-
-                    // Nutritions Section
-                    Text(
-                      'Nutritions',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: textDark,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildNutritionItem('Protein', '🍗', '250g'),
-                        _buildNutritionItem('Fat', '🥩', '25g'),
-                        _buildNutritionItem('Carbo', '🧅', '80g'),
-                        _buildNutritionItem('Calories', '🔥', '150g'),
-                      ],
-                    ),
-                    const SizedBox(height: 32),
-
-                    // Recipe Steps Section
-                    Text(
-                      'Recipe',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: textDark,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildRecipeStep(
-                      stepNumber: '1',
-                      title: '1 Step',
-                      description:
-                      'Wipe the chicken breasts and beat with a mallet or a knife to flatten. Cut each into two pieces.',
-                      isActive: true,
-                      isLast: false,
-                    ),
-                    _buildRecipeStep(
-                      stepNumber: '2',
-                      title: '2 Step',
-                      description:
-                      'Mix the chicken with the other ingredients, except oil.',
-                      isActive: false,
-                      isLast: false,
-                    ),
-                    _buildRecipeStep(
-                      stepNumber: '3',
-                      title: '3 Step',
-                      description: 'Put aside to marinate for 2 hours or so.',
-                      isActive: false,
-                      isLast: false,
-                    ),
-                    _buildRecipeStep(
-                      stepNumber: '4',
-                      title: '4 Step',
-                      description:
-                      'Heat a non-stick pan or grill with a thin layer of oil.',
-                      isActive: false,
-                      isLast: false,
-                    ),
-                    _buildRecipeStep(
-                      stepNumber: '5',
-                      title: '5 Step',
-                      description:
-                      'When hot, put the pieces of chicken without them touching each other, turning over at once.',
-                      isActive: false,
-                      isLast: true,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // 4. Floating Video Button
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 32),
-              child: ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.play_circle_outline, color: Colors.white),
-                label: const Text(
-                  'Video',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryGreen,
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
+                      if (recipe.area.isNotEmpty) const SizedBox(width: 10),
+                      if (recipe.area.isNotEmpty)
+                        Text(
+                          recipe.area,
+                          style: const TextStyle(
+                            color: textGrey,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                    ],
                   ),
-                  elevation: 8,
-                  shadowColor: primaryGreen.withOpacity(0.5),
+                  const SizedBox(height: 28),
+                  const Text(
+                    'Nutrition',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: textDark,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _nutritionCard('Calories', recipe.calories, '🔥'),
+                      _nutritionCard('Protein', recipe.protein, '🥩'),
+                      _nutritionCard('Fat', recipe.fat, '🥑'),
+                      _nutritionCard('Carbs', recipe.carbs, '🍞'),
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+                  const Text(
+                    'Ingredients',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: textDark,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  if (recipe.ingredients.isEmpty)
+                    const Text(
+                      'No ingredients available',
+                      style: TextStyle(color: textGrey),
+                    )
+                  else
+                    Column(
+                      children: recipe.ingredients.map((ingredient) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Padding(
+                                padding: EdgeInsets.only(top: 6),
+                                child: Icon(
+                                  Icons.circle,
+                                  size: 8,
+                                  color: primaryGreen,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  ingredient,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    color: textDark,
+                                    height: 1.5,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  const SizedBox(height: 28),
+                  const Text(
+                    'Recipe',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: textDark,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (recipe.instructions.isEmpty)
+                    const Text(
+                      'No steps available',
+                      style: TextStyle(color: textGrey),
+                    )
+                  else
+                    Column(
+                      children: List.generate(
+                        recipe.instructions.length,
+                            (index) {
+                          return _buildRecipeStep(
+                            stepNumber: '${index + 1}',
+                            title: '${index + 1} Step',
+                            description: recipe.instructions[index],
+                            isActive: index == 0,
+                            isLast: index == recipe.instructions.length - 1,
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 24,
+          child: Center(
+            child: ElevatedButton.icon(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Start Cooking screen belum dibuat'),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.play_circle_outline, color: Colors.white),
+              label: const Text(
+                'Start Cooking',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryGreen,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 28,
+                  vertical: 16,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
                 ),
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavButton({required IconData icon, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Icon(icon, color: textDark, size: 20),
-      ),
-    );
-  }
-
-  Widget _buildNutritionItem(String title, String emoji, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: textDark,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Text(emoji, style: const TextStyle(fontSize: 16)),
-            const SizedBox(width: 6),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: textDark,
-              ),
-            ),
-          ],
         ),
       ],
     );
   }
 
-  Widget _buildRecipeStep({
+  static Widget _buildTopButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Icon(icon, color: const Color(0xFF163A1B)),
+      ),
+    );
+  }
+
+  static Widget _nutritionCard(String title, String value, String emoji) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF6FFF2),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Column(
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 18)),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF163A1B),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFFA0A0A0),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static Widget _buildRecipeStep({
     required String stepNumber,
     required String title,
     required String description,
     required bool isActive,
     required bool isLast,
   }) {
-    Color itemColor = isActive ? primaryGreen : textGrey.withOpacity(0.5);
-    Color textColor = isActive ? textDark : textGrey;
+    const Color primaryGreen = Color(0xFF7ED957);
+    const Color textGrey = Color(0xFFA0A0A0);
+    const Color textDark = Color(0xFF163A1B);
+
+    final itemColor = isActive ? primaryGreen : textGrey.withOpacity(0.5);
+    final textColor = isActive ? textDark : textGrey;
 
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Timeline Indicator
           SizedBox(
-            width: 30,
+            width: 28,
             child: Column(
               children: [
                 Container(
                   width: 16,
                   height: 16,
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(
-                      color: itemColor,
-                      width: 2,
-                    ),
+                    border: Border.all(color: itemColor, width: 2),
                     color: Colors.white,
+                  ),
+                  child: Text(
+                    stepNumber,
+                    style: TextStyle(
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
+                      color: itemColor,
+                    ),
                   ),
                 ),
                 if (!isLast)
                   Expanded(
-                    child: CustomPaint(
-                      painter: DashedLinePainter(color: itemColor),
-                      size: const Size(1, double.infinity),
+                    child: Container(
+                      width: 1.5,
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      color: itemColor.withOpacity(0.4),
                     ),
                   ),
               ],
             ),
           ),
-          const SizedBox(width: 12),
-          // Step Content
+          const SizedBox(width: 14),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.only(bottom: 24),
@@ -325,7 +422,7 @@ class RecipeDetailScreen extends StatelessWidget {
                   Text(
                     title,
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 17,
                       fontWeight: FontWeight.bold,
                       color: textColor,
                     ),
@@ -334,9 +431,11 @@ class RecipeDetailScreen extends StatelessWidget {
                   Text(
                     description,
                     style: TextStyle(
-                      fontSize: 14,
-                      color: isActive ? textGrey : textGrey.withOpacity(0.7),
-                      height: 1.5,
+                      fontSize: 15,
+                      color: isActive
+                          ? textGrey
+                          : textGrey.withOpacity(0.85),
+                      height: 1.6,
                     ),
                   ),
                 ],
@@ -347,28 +446,4 @@ class RecipeDetailScreen extends StatelessWidget {
       ),
     );
   }
-}
-
-// Custom Painter to draw the dashed line for the recipe steps
-class DashedLinePainter extends CustomPainter {
-  final Color color;
-
-  DashedLinePainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    double dashHeight = 4, dashSpace = 4, startY = 4;
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 2;
-
-    while (startY < size.height) {
-      canvas.drawLine(Offset(size.width / 2, startY),
-          Offset(size.width / 2, startY + dashHeight), paint);
-      startY += dashHeight + dashSpace;
-    }
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

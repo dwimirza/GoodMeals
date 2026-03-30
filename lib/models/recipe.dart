@@ -8,6 +8,11 @@ class Recipe {
   final List<String> ingredients;
   final String youtubeUrl;
 
+  final String calories;
+  final String protein;
+  final String fat;
+  final String carbs;
+
   Recipe({
     required this.id,
     required this.title,
@@ -17,38 +22,70 @@ class Recipe {
     required this.instructions,
     required this.ingredients,
     required this.youtubeUrl,
+    required this.calories,
+    required this.protein,
+    required this.fat,
+    required this.carbs,
   });
 
-  // String get timeLabel => '45 MIN'; // API doesn't provide time
+  factory Recipe.fromSpoonacular(Map<String, dynamic> json) {
+    final extendedIngredients =
+        json['extendedIngredients'] as List<dynamic>? ?? [];
 
-  factory Recipe.fromJson(Map<String, dynamic> json) {
-    // Split instructions string into list
-    final raw = json['strInstructions'] as String? ?? '';
-    final steps = raw
-        .split('\r\n')
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty)
-        .toList();
+    final ingredients = extendedIngredients.map((e) {
+      final item = e as Map<String, dynamic>;
+      return item['original']?.toString() ?? '';
+    }).where((e) => e.isNotEmpty).toList();
 
-    // Build ingredients list from strIngredient1..20
-    final ingredients = <String>[];
-    for (int i = 1; i <= 20; i++) {
-      final ingredient = json['strIngredient$i'] as String?;
-      final measure = json['strMeasure$i'] as String?;
-      if (ingredient != null && ingredient.trim().isNotEmpty) {
-        ingredients.add('${measure?.trim() ?? ''} ${ingredient.trim()}'.trim());
+    final analyzedInstructions =
+        json['analyzedInstructions'] as List<dynamic>? ?? [];
+
+    List<String> instructions = [];
+
+    if (analyzedInstructions.isNotEmpty) {
+      final firstInstruction =
+      analyzedInstructions.first as Map<String, dynamic>;
+      final steps = firstInstruction['steps'] as List<dynamic>? ?? [];
+
+      instructions = steps.map((e) {
+        final step = e as Map<String, dynamic>;
+        return step['step']?.toString() ?? '';
+      }).where((e) => e.isNotEmpty).toList();
+    }
+
+    final nutrients =
+        ((json['nutrition'] as Map<String, dynamic>?)?['nutrients']
+        as List<dynamic>?) ??
+            [];
+
+    String findNutrient(String name) {
+      try {
+        final item = nutrients.firstWhere(
+              (e) => (e as Map<String, dynamic>)['name'] == name,
+        ) as Map<String, dynamic>;
+        return '${item['amount']} ${item['unit']}';
+      } catch (_) {
+        return '-';
       }
     }
 
     return Recipe(
-      id: json['idMeal'] as String? ?? '',
-      title: json['strMeal'] as String? ?? '',
-      imageUrl: json['strMealThumb'] as String? ?? '',
-      category: json['strCategory'] as String? ?? '',
-      area: json['strArea'] as String? ?? '',
-      instructions: steps,
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      imageUrl: json['image']?.toString() ?? '',
+      category: json['dishTypes'] != null && (json['dishTypes'] as List).isNotEmpty
+          ? (json['dishTypes'] as List).first.toString()
+          : '',
+      area: json['cuisines'] != null && (json['cuisines'] as List).isNotEmpty
+          ? (json['cuisines'] as List).first.toString()
+          : '',
+      instructions: instructions,
       ingredients: ingredients,
-      youtubeUrl: json['strYoutube'] as String? ?? '',
+      youtubeUrl: '',
+      calories: findNutrient('Calories'),
+      protein: findNutrient('Protein'),
+      fat: findNutrient('Fat'),
+      carbs: findNutrient('Carbohydrates'),
     );
   }
 }
