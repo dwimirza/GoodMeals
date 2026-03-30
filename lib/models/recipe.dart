@@ -29,63 +29,90 @@ class Recipe {
   });
 
   factory Recipe.fromSpoonacular(Map<String, dynamic> json) {
-    final extendedIngredients =
-        json['extendedIngredients'] as List<dynamic>? ?? [];
 
-    final ingredients = extendedIngredients.map((e) {
-      final item = e as Map<String, dynamic>;
-      return item['original']?.toString() ?? '';
-    }).where((e) => e.isNotEmpty).toList();
-
+  // If saved locally, instructions and ingredients are already parsed lists
+  List<String> instructions = [];
+  if (json['savedInstructions'] != null) {
+    instructions = List<String>.from(json['savedInstructions'] as List);
+  } else {
     final analyzedInstructions =
         json['analyzedInstructions'] as List<dynamic>? ?? [];
-
-    List<String> instructions = [];
-
     if (analyzedInstructions.isNotEmpty) {
       final firstInstruction =
-      analyzedInstructions.first as Map<String, dynamic>;
+          analyzedInstructions.first as Map<String, dynamic>;
       final steps = firstInstruction['steps'] as List<dynamic>? ?? [];
-
       instructions = steps.map((e) {
         final step = e as Map<String, dynamic>;
         return step['step']?.toString() ?? '';
       }).where((e) => e.isNotEmpty).toList();
     }
-
-    final nutrients =
-        ((json['nutrition'] as Map<String, dynamic>?)?['nutrients']
-        as List<dynamic>?) ??
-            [];
-
-    String findNutrient(String name) {
-      try {
-        final item = nutrients.firstWhere(
-              (e) => (e as Map<String, dynamic>)['name'] == name,
-        ) as Map<String, dynamic>;
-        return '${item['amount']} ${item['unit']}';
-      } catch (_) {
-        return '-';
-      }
-    }
-
-    return Recipe(
-      id: json['id']?.toString() ?? '',
-      title: json['title']?.toString() ?? '',
-      imageUrl: json['image']?.toString() ?? '',
-      category: json['dishTypes'] != null && (json['dishTypes'] as List).isNotEmpty
-          ? (json['dishTypes'] as List).first.toString()
-          : '',
-      area: json['cuisines'] != null && (json['cuisines'] as List).isNotEmpty
-          ? (json['cuisines'] as List).first.toString()
-          : '',
-      instructions: instructions,
-      ingredients: ingredients,
-      youtubeUrl: '',
-      calories: findNutrient('Calories'),
-      protein: findNutrient('Protein'),
-      fat: findNutrient('Fat'),
-      carbs: findNutrient('Carbohydrates'),
-    );
   }
+
+  List<String> ingredients = [];
+  if (json['savedIngredients'] != null) {
+    ingredients = List<String>.from(json['savedIngredients'] as List);
+  } else {
+    final extendedIngredients =
+        json['extendedIngredients'] as List<dynamic>? ?? [];
+    ingredients = extendedIngredients.map((e) {
+      final item = e as Map<String, dynamic>;
+      return item['original']?.toString() ?? '';
+    }).where((e) => e.isNotEmpty).toList();
+  }
+
+  // Nutrition
+  final nutrients =
+      ((json['nutrition'] as Map<String, dynamic>?)?['nutrients']
+      as List<dynamic>?) ?? [];
+
+  String findNutrient(String name) {
+    try {
+      final item = nutrients.firstWhere(
+        (e) => (e as Map<String, dynamic>)['name'] == name,
+      ) as Map<String, dynamic>;
+      return '${item['amount']} ${item['unit']}';
+    } catch (_) {
+      return json[name.toLowerCase()] as String? ?? '-'; // fallback to saved value
+    }
+  }
+
+  return Recipe(
+    id: json['id']?.toString() ?? '',
+    title: json['title']?.toString() ?? '',
+    imageUrl: json['image']?.toString() ?? '',
+    category: json['dishTypes'] != null && (json['dishTypes'] as List).isNotEmpty
+        ? (json['dishTypes'] as List).first.toString()
+        : '',
+    area: json['cuisines'] != null && (json['cuisines'] as List).isNotEmpty
+        ? (json['cuisines'] as List).first.toString()
+        : '',
+    instructions: instructions,
+    ingredients: ingredients,
+    youtubeUrl: json['youtubeUrl']?.toString() ?? '',
+    calories: findNutrient('Calories'),
+    protein: findNutrient('Protein'),
+    fat: findNutrient('Fat'),
+    carbs: findNutrient('Carbohydrates'),
+  );
+}
+
+
+  Map<String, dynamic> toJson() {
+  return {
+    'id': id,
+    'title': title,
+    'image': imageUrl,
+    'dishTypes': [category],
+    'cuisines': [area],
+    'youtubeUrl': youtubeUrl,
+    'calories': calories,
+    'protein': protein,
+    'fat': fat,
+    'carbs': carbs,
+    // store instructions as a simple list for easy re-reading
+    'savedInstructions': instructions,
+    // store ingredients as a simple list
+    'savedIngredients': ingredients,
+  };
+}
 }

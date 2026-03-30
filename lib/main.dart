@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:goodmeals/services/bookmark_service.dart';
 import 'models/recipe.dart';
 import 'recipe_detail_screen.dart';
 import 'services/recipe_api.dart';
+import 'bookmark_screen.dart';
 
 void main() {
   runApp(const GoodMealsApp());
@@ -39,13 +41,25 @@ class _GoodMealsHomeState extends State<GoodMealsHome> {
   late Future<List<Recipe>> _futureRecipes;
   final TextEditingController _searchController = TextEditingController();
 
+  final BookmarkService _bookmarkService = BookmarkService();
+  Set<String> _bookmarkedIds = {};
+
+
   String _selectedCategory = 'main course';
 
-  @override
-  void initState() {
-    super.initState();
-    _futureRecipes = _api.searchRecipes('chicken');
-  }
+@override
+void initState() {
+  super.initState();
+  _futureRecipes = _api.searchRecipes('chicken');
+  _loadBookmarkedIds();
+}
+
+Future<void> _loadBookmarkedIds() async {
+  final bookmarks = await _bookmarkService.getBookmarks();
+  setState(() {
+    _bookmarkedIds = bookmarks.map((r) => r.id).toSet();
+  });
+}
 
   @override
   void dispose() {
@@ -276,146 +290,191 @@ class _GoodMealsHomeState extends State<GoodMealsHome> {
   }
 
   Widget _buildCustomCard({
-    required Color bgColor,
-    required Color textColor,
-    required String imageUrl,
-    required String title,
-    required VoidCallback onTap,
-  }) {
-    final safeImageUrl = imageUrl.isNotEmpty
-        ? imageUrl
-        : 'https://via.placeholder.com/300x300.png?text=No+Image';
+  required Color bgColor,
+  required Color textColor,
+  required String imageUrl,
+  required String title,
+  required VoidCallback onTap,
+  required bool isBookmarked,
+  required Future<void> Function() onBookmarkTap,
+}) {
+  final safeImageUrl = imageUrl.isNotEmpty
+      ? imageUrl
+      : 'https://via.placeholder.com/300x300.png?text=No+Image';
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  Icons.restaurant_menu,
-                  size: 16,
-                  color: textColor.withOpacity(0.7),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: 160,
-                  child: Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                      color: textColor,
-                      height: 1.2,
-                    ),
+  return GestureDetector(
+    onTap: onTap,
+    child: Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(    
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.restaurant_menu,
+                size: 16,
+                color: textColor.withOpacity(0.7),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: 160,
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: textColor,
+                    height: 1.2,
                   ),
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: textColor,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        children: const [
-                          Text(
-                            'Recipe',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Icon(
-                            Icons.arrow_forward,
-                            color: Colors.white,
-                            size: 14,
-                          ),
-                        ],
-                      ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  // Recipe button
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
                     ),
-                    const SizedBox(width: 16),
-                    Icon(Icons.bookmark, color: textColor),
-                  ],
-                )
-              ],
+                    decoration: BoxDecoration(
+                      color: textColor,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      children: const [
+                        Text(
+                          'Recipe',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Icon(
+                          Icons.arrow_forward,
+                          color: Colors.white,
+                          size: 14,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+
+                  // Bookmark button - fixed
+                  GestureDetector(
+                    onTap: () => onBookmarkTap(),
+                    child: Icon(
+                      isBookmarked ? Icons.bookmark : Icons.bookmark_outline,
+                      color: isBookmarked
+                          ? textColor
+                          : textColor.withOpacity(0.4),
+                      size: 28,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        // Food image
+        Positioned(
+          right: -10,
+          top: -20,
+          child: Container(
+            width: 140,
+            height: 140,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 4),
+              color: Colors.white,
+            ),
+            child: ClipOval(
+              child: Image.network(
+                safeImageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.grey.shade200,
+                    child: const Icon(
+                      Icons.image_not_supported,
+                      color: Colors.grey,
+                      size: 32,
+                    ),
+                  );
+                },
+              ),
             ),
           ),
-          Positioned(
-            right: -10,
-            top: -20,
-            child: Container(
-              width: 140,
-              height: 140,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 4),
-                color: Colors.white,
-              ),
-              child: ClipOval(
-                child: Image.network(
-                  safeImageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey.shade200,
-                      child: const Icon(
-                        Icons.image_not_supported,
-                        color: Colors.grey,
-                        size: 32,
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildBottomNav() {
-    return Container(
-      height: 70,
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(35),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildNavIcon(Icons.home, isActive: true),
-          _buildNavIcon(Icons.search, isActive: false),
-          _buildNavIcon(Icons.bookmark_outline, isActive: false),
-          _buildNavIcon(Icons.person_outline, isActive: false),
-        ],
+  return Container(
+    height: 70,
+    decoration: BoxDecoration(
+      color: Colors.white.withOpacity(0.9),
+      borderRadius: BorderRadius.circular(35),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 20,
+          offset: const Offset(0, 10),
+        ),
+      ],
+    ),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        // Home - already on home screen, no navigation needed
+        _buildNavIcon(Icons.home, isActive: true),
+
+        // Search
+        _buildNavIcon(Icons.search, isActive: false),
+
+        // Bookmarks - navigate to BookmarkScreen
+        GestureDetector(
+  onTap: () async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BookmarkScreen(
+          onBookmarkChanged: (id, isAdded) {
+            setState(() {
+              if (isAdded) {
+                _bookmarkedIds.add(id);
+              } else {
+                _bookmarkedIds.remove(id);
+              }
+            });
+          },
+        ),
       ),
     );
-  }
+    // Reload all bookmark ids when returning to home
+    _loadBookmarkedIds();
+  },
+  child: _buildNavIcon(Icons.bookmark_outline, isActive: false),
+),
+
+        // Profile - stub for now
+        _buildNavIcon(Icons.person_outline, isActive: false),
+      ],
+    ),
+  );
+}
 
   Widget _buildNavIcon(IconData icon, {required bool isActive}) {
     return Container(
@@ -433,59 +492,69 @@ class _GoodMealsHomeState extends State<GoodMealsHome> {
   }
 
   Widget _buildRecipeCardsFromApi(BuildContext context) {
-    return FutureBuilder<List<Recipe>>(
-      future: _futureRecipes,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+  return FutureBuilder<List<Recipe>>(
+    future: _futureRecipes,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Center(child: CircularProgressIndicator());
+      }
 
-        if (snapshot.hasError) {
-          return Center(
-            child: Text(
-              'Failed to load recipes: ${snapshot.error}',
-              style: TextStyle(color: Colors.red.shade700),
-            ),
-          );
-        }
-
-        final recipes = snapshot.data ?? [];
-
-        if (recipes.isEmpty) {
-          return const Text('No recipes found');
-        }
-
-        return Column(
-          children: [
-            for (int i = 0; i < recipes.length; i++)
-              Padding(
-                padding: EdgeInsets.only(
-                  bottom: i == recipes.length - 1 ? 0 : 40.0,
-                ),
-                child: _buildCustomCard(
-                  bgColor: i.isEven
-                      ? const Color(0xFFFDF7CC)
-                      : const Color(0xFFD1FAE5),
-                  textColor: i.isEven
-                      ? const Color(0xFF4E3D00)
-                      : const Color(0xFF00443D),
-                  title: recipes[i].title,
-                  imageUrl: recipes[i].imageUrl,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => RecipeDetailScreen(
-                          recipeId: recipes[i].id,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-          ],
+      if (snapshot.hasError) {
+        return Center(
+          child: Text(
+            'Failed to load recipes: ${snapshot.error}',
+            style: TextStyle(color: Colors.red.shade700),
+          ),
         );
-      },
-    );
-  }
-}
+      }
+
+      final recipes = snapshot.data ?? [];
+
+      if (recipes.isEmpty) {
+        return const Text('No recipes found');
+      }
+
+      return Column(
+        children: [
+          for (int i = 0; i < recipes.length; i++)
+            Padding(
+              padding: EdgeInsets.only(
+                bottom: i == recipes.length - 1 ? 0 : 40.0,
+              ),
+              child: _buildCustomCard(
+                bgColor: i.isEven
+                    ? const Color(0xFFFDF7CC)
+                    : const Color(0xFFD1FAE5),
+                textColor: i.isEven
+                    ? const Color(0xFF4E3D00)
+                    : const Color(0xFF00443D),
+                title: recipes[i].title,
+                imageUrl: recipes[i].imageUrl,
+                isBookmarked: _bookmarkedIds.contains(recipes[i].id), // new
+                onBookmarkTap: () async {                              // new
+                  final added = await _bookmarkService.toggleBookmark(recipes[i]);
+                  setState(() {
+                    if (added) {
+                      _bookmarkedIds.add(recipes[i].id);
+                    } else {
+                      _bookmarkedIds.remove(recipes[i].id);
+                    }
+                  });
+                },
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => RecipeDetailScreen(
+                        recipeId: recipes[i].id,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      );
+    },
+  );
+}}  
