@@ -7,6 +7,7 @@ import 'login_page.dart';
 import 'recipe_detail_screen.dart';
 import 'services/recipe_api.dart';
 import 'bookmark_screen.dart';
+import 'profile_screen.dart';
 
 
 Future<void> main() async {
@@ -157,6 +158,8 @@ Future<void> _loadBookmarkedIds() async {
   }
 
   Widget _buildTopAppBar() {
+    final user = SupabaseService.currentUser;
+    final username = user?.userMetadata?['username'] ?? user?.email?.split('@').first;
     return Row(
       children: [
         Container(
@@ -170,7 +173,7 @@ Future<void> _loadBookmarkedIds() async {
         ),
         const SizedBox(width: 16),
         Text(
-          'Hi, Angelia!',
+          'Hi, $username!',
           style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.w800,
@@ -473,9 +476,6 @@ Future<void> _loadBookmarkedIds() async {
         // Home - already on home screen, no navigation needed
         _buildNavIcon(Icons.home, isActive: true),
 
-        // Search
-        _buildNavIcon(Icons.search, isActive: false),
-
         // Bookmarks - navigate to BookmarkScreen
         GestureDetector(
   onTap: () async {
@@ -502,7 +502,18 @@ Future<void> _loadBookmarkedIds() async {
 ),
 
         // Profile - stub for now
-        _buildNavIcon(Icons.person_outline, isActive: false),
+        GestureDetector(
+          onTap: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const ProfileScreen(),
+              ),
+            );
+            setState(() {});
+          },
+          child: _buildNavIcon(Icons.person_outline, isActive: false),
+        ),
       ],
     ),
   );

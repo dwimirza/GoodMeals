@@ -1,4 +1,3 @@
-// lib/services/supabase_service.dart
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseService {
@@ -13,21 +12,28 @@ class SupabaseService {
 
   static User? get currentUser => client.auth.currentUser;
 
-  static Future<AuthResponse> signUp({
+  static Stream<AuthState> get authStateChanges =>
+      client.auth.onAuthStateChange;
+
+  static Future<void> signUp({
     required String email,
     required String password,
+    required String username,
   }) async {
-    return await client.auth.signUp(
+    await client.auth.signUp(
       email: email,
       password: password,
+      data: {
+        'username': username,
+      },
     );
   }
 
-  static Future<AuthResponse> signIn({
+  static Future<void> signIn({
     required String email,
     required String password,
   }) async {
-    return await client.auth.signInWithPassword(
+    await client.auth.signInWithPassword(
       email: email,
       password: password,
     );
@@ -36,7 +42,4 @@ class SupabaseService {
   static Future<void> signOut() async {
     await client.auth.signOut();
   }
-
-  static Stream<AuthState> get authStateChanges =>
-      client.auth.onAuthStateChange;
 }
