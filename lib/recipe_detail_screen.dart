@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'models/recipe.dart';
 import 'services/recipe_api.dart';
+import 'cooking_steps_screen.dart';
 
 class RecipeDetailScreen extends StatelessWidget {
   final String recipeId;
@@ -266,12 +267,13 @@ class _RecipeDetailContent extends StatelessWidget {
           child: Center(
             child: ElevatedButton.icon(
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Start Cooking screen belum dibuat'),
-                  ),
-                );
-              },
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                  builder: (context) => CookingStepsScreen(recipe: recipe),
+                ),
+              );
+            },
               icon: const Icon(Icons.play_circle_outline, color: Colors.white),
               label: const Text(
                 'Start Cooking',
