@@ -1,76 +1,78 @@
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/recipe.dart';
+import 'supabase_service.dart';
 
 class BookmarkService {
-  static const _key = 'bookmarked_recipes';
+  static const String tableName = 'bookmarks';
 
-  // Get all bookmarked recipes
   Future<List<Recipe>> getBookmarks() async {
-  final prefs = await SharedPreferences.getInstance();
-  final List<String> raw = prefs.getStringList(_key) ?? [];
+    final user = SupabaseService.currentUser;
+    if (user == null) return [];
 
-  final validRaw = raw.where((e) {
-    final map = jsonDecode(e) as Map<String, dynamic>;
-    final id = map['id']?.toString() ?? '';
-    final title = map['title']?.toString() ?? '';
-    return id.isNotEmpty && title.isNotEmpty; // skip corrupt entries
-  }).toList();
+    final data = await SupabaseService.client
+        .from(tableName)
+        .select()
+        .eq('user_id', user.id)
+        .order('created_at', ascending: false);
 
-  // Save back only the valid ones, removing corrupt ones permanently
-  await prefs.setStringList(_key, validRaw);
+    return (data as List)
+        .map((item) => Recipe.fromBookmark(item))
+        .toList();
+  }
 
-  return validRaw
-      .map((e) => Recipe.fromSpoonacular(jsonDecode(e) as Map<String, dynamic>))
-      .toList();
-}
-
-  // Check if a recipe is bookmarked
   Future<bool> isBookmarked(String id) async {
-    final prefs = await SharedPreferences.getInstance();
-    final List<String> raw = prefs.getStringList(_key) ?? [];
-    return raw.any((e) {
-      final map = jsonDecode(e) as Map<String, dynamic>;
-      return map['id'] == id;
-    });
+    final user = SupabaseService.currentUser;
+    if (user == null) return false;
+
+    final data = await SupabaseService.client
+        .from(tableName)
+        .select('recipe_id')
+        .eq('user_id', user.id)
+        .eq('recipe_id', id);
+
+    return (data as List).isNotEmpty;
   }
 
-  // Add bookmark
   Future<void> addBookmark(Recipe recipe) async {
-  final prefs = await SharedPreferences.getInstance();
-  final List<String> raw = prefs.getStringList(_key) ?? [];
-  
-  final encoded = jsonEncode(recipe.toJson());
-  
-  // DEBUG: print what's being saved
-  print('=== SAVING BOOKMARK ===');
-  print('Encoded: $encoded');
-  print('=======================');
-  
-  raw.add(encoded);
-  await prefs.setStringList(_key, raw);
-}
+    final user = SupabaseService.currentUser;
+    if (user == null) throw Exception('User belum login');
 
-  // Remove bookmark
-  Future<void> removeBookmark(String id) async {
-    final prefs = await SharedPreferences.getInstance();
-    final List<String> raw = prefs.getStringList(_key) ?? [];
-    raw.removeWhere((e) {
-      final map = jsonDecode(e) as Map<String, dynamic>;
-      return map['id'] == id;
+    await SupabaseService.client.from(tableName).insert({
+      'user_id': user.id,
+      'recipe_id': recipe.id,
+      'title': recipe.title,
+      'image_url': recipe.imageUrl,
+      'category': recipe.category,
+      'area': recipe.area,
+      'instructions': recipe.instructions,
+      'ingredients': recipe.ingredients,
+      'youtube_url': recipe.youtubeUrl,
+      'calories': recipe.calories,
+      'protein': recipe.protein,
+      'fat': recipe.fat,
+      'carbs': recipe.carbs,
     });
-    await prefs.setStringList(_key, raw);
   }
 
-  // Toggle bookmark
+  Future<void> removeBookmark(String id) async {
+    final user = SupabaseService.currentUser;
+    if (user == null) throw Exception('User belum login');
+
+    await SupabaseService.client
+        .from(tableName)
+        .delete()
+        .eq('user_id', user.id)
+        .eq('recipe_id', id);
+  }
+
   Future<bool> toggleBookmark(Recipe recipe) async {
     final bookmarked = await isBookmarked(recipe.id);
+
     if (bookmarked) {
       await removeBookmark(recipe.id);
-      return false; // now removed
+      return false;
     } else {
       await addBookmark(recipe);
-      return true; // now added
+      return true;
     }
   }
 }

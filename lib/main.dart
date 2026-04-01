@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:goodmeals/services/bookmark_service.dart';
+import 'services/supabase_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models/recipe.dart';
+import 'login_page.dart';
 import 'recipe_detail_screen.dart';
 import 'services/recipe_api.dart';
 import 'bookmark_screen.dart';
 
-void main() {
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SupabaseService.init();
   runApp(const GoodMealsApp());
 }
 
@@ -21,7 +27,27 @@ class GoodMealsApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFEBFFE6),
         fontFamily: 'Inter',
       ),
-      home: const GoodMealsHome(),
+      home: const AuthWrapper(),
+    );
+  }
+}
+
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<AuthState>(
+      stream: SupabaseService.authStateChanges,
+      builder: (context, snapshot) {
+        final user = SupabaseService.currentUser;
+
+        if (user != null) {
+          return const GoodMealsHome();
+        }
+
+        return const LoginPage();
+      },
     );
   }
 }
@@ -155,6 +181,12 @@ Future<void> _loadBookmarkedIds() async {
         IconButton(
           icon: const Icon(Icons.notifications_none, color: Colors.grey),
           onPressed: () {},
+        ),
+        IconButton(
+          icon: Icon(Icons.logout, color: primaryGreen),
+          onPressed: () async {
+            await SupabaseService.signOut();
+          },
         ),
       ],
     );
