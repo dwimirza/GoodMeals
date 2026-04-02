@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 import 'services/supabase_service.dart';
 import 'edit_profile_screen.dart';
 import 'bookmark_screen.dart';
@@ -23,19 +25,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
 
-    setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
-  @override
   @override
   Widget build(BuildContext context) {
     final user = SupabaseService.currentUser;
     final metadata = user?.userMetadata ?? {};
 
-    final username =
-        metadata['username']?.toString() ??
-            user?.email?.split('@').first ??
-            'Guest';
+    final username = metadata['username']?.toString() ??
+        user?.email?.split('@').first ??
+        'Guest';
 
     final fullName = metadata['full_name']?.toString() ?? '';
     final avatarUrl = metadata['avatar_url']?.toString() ?? '';
@@ -48,9 +50,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         elevation: 0,
         title: Text(
           'Profile',
-          style: TextStyle(
+          style: GoogleFonts.poppins(
             color: textDark,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w700,
           ),
         ),
         iconTheme: IconThemeData(color: textDark),
@@ -77,16 +79,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 20),
             Text(
               fullName.isNotEmpty ? fullName : username,
-              style: TextStyle(
+              style: GoogleFonts.poppins(
                 fontSize: 24,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w700,
                 color: textDark,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               '@$username',
-              style: TextStyle(
+              style: GoogleFonts.poppins(
                 fontSize: 16,
                 color: Colors.grey.shade700,
               ),
@@ -94,7 +96,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 8),
             Text(
               email,
-              style: TextStyle(
+              style: GoogleFonts.poppins(
                 fontSize: 15,
                 color: Colors.grey.shade600,
               ),
@@ -112,9 +114,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 icon: const Icon(Icons.edit, color: Colors.white),
-                label: const Text(
+                label: Text(
                   'Edit Profile',
-                  style: TextStyle(color: Colors.white),
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
@@ -167,7 +172,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               );
-              setState(() {});
+              if (mounted) setState(() {});
             },
             child: _buildNavIcon(Icons.bookmark_outline, isActive: false),
           ),

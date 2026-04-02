@@ -1,6 +1,24 @@
 import 'dart:convert';
+import 'dart:math';
+
 import 'package:http/http.dart' as http;
 import '../models/recipe.dart';
+
+class PaginatedRecipeResult {
+  final List<Recipe> recipes;
+  final int totalResults;
+  final int page;
+  final int pageSize;
+  final int totalPages;
+
+  PaginatedRecipeResult({
+    required this.recipes,
+    required this.totalResults,
+    required this.page,
+    required this.pageSize,
+    required this.totalPages,
+  });
+}
 
 class RecipeMealDb {
   static const String _base =
@@ -11,46 +29,85 @@ class RecipeMealDb {
     'x-rapidapi-host': 'spoonacular-recipe-food-nutrition-v1.p.rapidapi.com',
   };
 
-  Future<List<Recipe>> searchRecipes(String query) async {
-    final uri = Uri.parse(
-      '$_base/recipes/complexSearch?query=${Uri.encodeQueryComponent(query)}&number=10&addRecipeInformation=true&fillIngredients=true',
-    );
+  Future<PaginatedRecipeResult> getRecipes({
+    String? query,
+    String? category,
+    int page = 1,
+    int pageSize = 6,
+  }) async {
+    final safePage = page < 1 ? 1 : page;
+    final safePageSize = pageSize < 1 ? 6 : pageSize;
+    final offset = (safePage - 1) * safePageSize;
+
+    final queryParams = <String, String>{
+      'number': safePageSize.toString(),
+      'offset': offset.toString(),
+      'addRecipeInformation': 'true',
+      'fillIngredients': 'true',
+    };
+
+    if (query != null && query.trim().isNotEmpty) {
+      queryParams['query'] = query.trim();
+    }
+
+    if (category != null && category.trim().isNotEmpty) {
+      queryParams['type'] = category.trim().toLowerCase();
+    }
+
+    final uri = Uri.parse('$_base/recipes/complexSearch')
+        .replace(queryParameters: queryParams);
 
     final response = await http.get(uri, headers: _headers);
 
     if (response.statusCode == 200) {
       final json = jsonDecode(response.body) as Map<String, dynamic>;
-      final results = json['results'] as List<dynamic>?;
+      final results = json['results'] as List<dynamic>? ?? [];
+      final totalResults = (json['totalResults'] as num?)?.toInt() ?? 0;
 
-      if (results == null) return [];
-
-      return results
+      final recipes = results
           .map((e) => Recipe.fromSpoonacular(e as Map<String, dynamic>))
           .toList();
+
+      final totalPages = totalResults == 0
+          ? 1
+          : max(1, (totalResults / safePageSize).ceil());
+
+      return PaginatedRecipeResult(
+        recipes: recipes,
+        totalResults: totalResults,
+        page: safePage,
+        pageSize: safePageSize,
+        totalPages: totalPages,
+      );
     } else {
       throw Exception('Failed: ${response.statusCode} - ${response.body}');
     }
   }
 
-  Future<List<Recipe>> filterByCategory(String category) async {
-    final uri = Uri.parse(
-      '$_base/recipes/complexSearch?type=${Uri.encodeQueryComponent(category.toLowerCase())}&number=10&addRecipeInformation=true&fillIngredients=true',
+  Future<List<Recipe>> searchRecipes(
+      String query, {
+        int page = 1,
+        int pageSize = 10,
+      }) async {
+    final result = await getRecipes(
+      query: query,
+      page: page,
+      pageSize: pageSize,
     );
+    return result.recipes;
+  }
 
-    final response = await http.get(uri, headers: _headers);
-
-    if (response.statusCode == 200) {
-      final json = jsonDecode(response.body) as Map<String, dynamic>;
-      final results = json['results'] as List<dynamic>?;
-
-      if (results == null) return [];
-
-      return results
-          .map((e) => Recipe.fromSpoonacular(e as Map<String, dynamic>))
-          .toList();
-    } else {
-      throw Exception('Failed: ${response.statusCode} - ${response.body}');
-    }
+  Future<List<Recipe>> filterByCategory(
+      String category, {
+        int page = 1,
+        int pageSize = 10,
+      }) async {
+    final result = await getRecipes(
+      category: category,
+      page: page,
+      pageSize: pageSize,
+    );
+    return result.recipes;
   }
 
   Future<Recipe?> getById(String id) async {
