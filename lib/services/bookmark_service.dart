@@ -42,14 +42,7 @@ class BookmarkService {
       'title': recipe.title,
       'image_url': recipe.imageUrl,
       'category': recipe.category,
-      'area': recipe.area,
-      'instructions': recipe.instructions,
       'ingredients': recipe.ingredients,
-      'youtube_url': recipe.youtubeUrl,
-      'calories': recipe.calories,
-      'protein': recipe.protein,
-      'fat': recipe.fat,
-      'carbs': recipe.carbs,
     });
   }
 
