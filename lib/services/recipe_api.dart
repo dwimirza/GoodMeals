@@ -25,8 +25,8 @@ class RecipeMealDb {
       'https://spoonacular-recipe-food-nutrition-v1.p.rapidapi.com';
 
   static const Map<String, String> _headers = {
-    'x-rapidapi-key': '365e82efffmsha7d6faa2248dc72p13938fjsnafd3658e78e3',
-    'x-rapidapi-host': 'spoonacular-recipe-food-nutrition-v1.p.rapidapi.com',
+    'x-rapidapi-key': 'spoonacular-api-key',
+    'x-rapidapi-host': 'spoonaculra-api-host',
   };
 
   Future<PaginatedRecipeResult> getRecipes({
